@@ -1,0 +1,43 @@
+name: Auto Release with ZIP on Main Push
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run build
+
+      - name: Create ZIP archive
+        run: |
+          # 压缩 dist 目录为带时间戳的 ZIP 文件
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          zip -r "release-${TIMESTAMP}.zip" dist/
+
+      - name: Generate Release Tag
+        id: tag
+        run: |
+          # 生成带短提交哈希的标签名（示例：release-abc1234）
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          echo "tag_name=release-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Publish Release with ZIP
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: "Release ${{ steps.tag.outputs.tag_name }}"
+          files: |
+            release-*.zip  # 匹配所有以 release- 开头的 ZIP 文件
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
