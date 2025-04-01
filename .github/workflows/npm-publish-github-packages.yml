@@ -18,11 +18,30 @@ jobs:
       - run: npm install
       - run: npm run build
 
-      - name: Create release
+      - name: Generate Unique Tag
+        id: tag
+        run: |
+          # 生成时间戳 + 短提交哈希作为标签名（示例：release-20231025-abc1234）
+          TIMESTAMP=$(date +%Y%m%d)
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          echo "tag_name=release-${TIMESTAMP}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref }}
-          files:
+          tag_name: ${{ steps.tag.outputs.tag_name }}  # 使用动态生成的标签名
+          name: "Release ${{ steps.tag.outputs.tag_name }}"  # 可自定义发布名称
+          files: |
             dist/**/*
+          generate_release_notes: true  # 自动生成发布说明
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Create release
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     tag_name: ${{ github.ref }}
+      #     files:
+      #       dist/**/*
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
