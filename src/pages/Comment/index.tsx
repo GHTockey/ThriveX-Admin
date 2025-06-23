@@ -14,6 +14,7 @@ import { Comment, FilterForm } from '@/types/app/comment'
 import { useWebStore, useUserStore } from '@/stores'
 
 import dayjs from 'dayjs';
+import { DeleteOutlined, SendOutlined } from '@ant-design/icons';
 
 export default () => {
     const [loading, setLoading] = useState(false);
@@ -96,15 +97,15 @@ export default () => {
             key: 'action',
             fixed: 'right',
             align: 'center',
-            render: (text: string, record: Comment) => (
+            render: (_: string, record: Comment) => (
                 <div className='flex justify-center space-x-2'>
                     <Button onClick={() => {
                         setComment(record)
                         setIsReplyModalOpen(true)
-                    }}>回复</Button>
+                    }} icon={<SendOutlined />} />
 
                     <Popconfirm title="警告" description="你确定要删除吗" okText="确定" cancelText="取消" onConfirm={() => delCommentData(record.id!)}>
-                        <Button type="primary" danger>删除</Button>
+                        <Button type="primary" danger icon={<DeleteOutlined />} />
                     </Popconfirm>
                 </div>
             ),

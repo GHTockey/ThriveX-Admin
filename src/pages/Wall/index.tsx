@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, message, Table, Popconfirm, Button, Tag, Modal, Form, Input, DatePicker, Select } from 'antd';
 import { ColumnsType } from 'antd/es/table';
-import { getWallListAPI, delWallDataAPI, getWallCateListAPI } from '@/api/Wall';
+import { getWallListAPI, delWallDataAPI, getWallCateListAPI, updateChoiceAPI } from '@/api/Wall';
 import { titleSty } from '@/styles/sty';
 import Title from '@/components/Title';
 import type { Cate, Wall, FilterForm, FilterWall } from '@/types/app/wall';
@@ -9,10 +9,11 @@ import dayjs from 'dayjs';
 import TextArea from 'antd/es/input/TextArea';
 import { sendReplyWallEmailAPI } from '@/api/Email';
 import { useWebStore } from '@/stores';
+import { DeleteOutlined, SendOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 
 export default () => {
     const web = useWebStore(state => state.web)
-    
+
     const [loading, setLoading] = useState(false);
 
     const [wall, setWall] = useState<Wall>({} as Wall);
@@ -108,15 +109,27 @@ export default () => {
             key: 'action',
             fixed: 'right',
             align: 'center',
-            render: (text: string, record: Wall) => (
+            render: (_: string, record: Wall) => (
                 <div className='flex justify-center space-x-2'>
+                    <Button type={record.isChoice === 1 ? 'primary' : 'default'} onClick={async () => {
+                        try {
+                            setLoading(true)
+                            await updateChoiceAPI(record.id)
+                            message.success('🎉 操作成功')
+                            getWallList()
+                            setLoading(false)
+                        } catch (error) {
+                            setLoading(false)
+                        }
+                    }} icon={record.isChoice === 1 ? <StarFilled /> : <StarOutlined />} />
+
                     <Button onClick={() => {
                         setWall(record)
                         setIsReplyModalOpen(true)
-                    }}>回复</Button>
+                    }} icon={<SendOutlined />} />
 
                     <Popconfirm title="警告" description="你确定要删除吗" okText="确定" cancelText="取消" onConfirm={() => delWallData(record.id)}>
-                        <Button type="primary" danger>删除</Button>
+                        <Button type="primary" danger icon={<DeleteOutlined />} />
                     </Popconfirm>
                 </div>
             ),

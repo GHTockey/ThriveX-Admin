@@ -8,14 +8,18 @@ import { GiPositionMarker } from "react-icons/gi";
 import { IoSearch } from "react-icons/io5";
 import dayjs from 'dayjs';
 import axios from 'axios';
+import { CloudUploadOutlined, DeleteOutlined, FormOutlined } from '@ant-design/icons';
+import Material from '@/components/Material';
 
 export default () => {
   const [loading, setLoading] = useState<boolean>(false);
+  const [searchLoading, setSearchLoading] = useState<boolean>(false);
   const [btnLoading, setBtnLoading] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
 
   const [footprintList, setFootprintList] = useState<Footprint[]>([]);
   const [isModelOpen, setIsModelOpen] = useState(false);
+  const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
   const [footprint, setFootprint] = useState<Footprint>({} as Footprint);
   const [isMethod, setIsMethod] = useState<'create' | 'edit'>('create');
   const [form] = Form.useForm();
@@ -73,11 +77,11 @@ export default () => {
       key: 'action',
       fixed: 'right',
       align: 'center',
-      render: (text: string, record: Footprint) => (
+      render: (_: string, record: Footprint) => (
         <div className='flex space-x-2'>
-          <Button onClick={() => editFootprintData(record.id!)}>修改</Button>
+          <Button onClick={() => editFootprintData(record.id!)} icon={<FormOutlined />} />
           <Popconfirm title="警告" description="你确定要删除吗" okText="确定" cancelText="取消" onConfirm={() => delFootprintData(record.id!)}>
-            <Button type="primary" danger>删除</Button>
+            <Button type="primary" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </div>
       ),
@@ -148,7 +152,7 @@ export default () => {
       setEditLoading(false);
     }
   };
-  
+
   const onSubmit = async () => {
     try {
       setBtnLoading(true)
@@ -169,6 +173,8 @@ export default () => {
         getFootprintList();
         reset()
       });
+
+      setBtnLoading(false)
     } catch (error) {
       setBtnLoading(false)
     }
@@ -188,7 +194,7 @@ export default () => {
 
       const { data } = await getFootprintListAPI({ query });
       setFootprintList(data);
-      
+
       setLoading(false)
     } catch (error) {
       setLoading(false)
@@ -198,7 +204,7 @@ export default () => {
   // 通过详细地址获取纬度
   const getGeocode = async () => {
     try {
-      setEditLoading(true)
+      setSearchLoading(true)
 
       const address = form.getFieldValue("address")
 
@@ -216,14 +222,14 @@ export default () => {
         // 立即触发校验
         form.validateFields(['position']);
 
+        setSearchLoading(false)
         return data.geocodes[0].location;
       } else {
+        setSearchLoading(false)
         message.warning('未找到该地址的经纬度');
       }
-
-      setEditLoading(false)
     } catch (error) {
-      setEditLoading(false)
+      setSearchLoading(false)
     }
   };
 
@@ -266,42 +272,60 @@ export default () => {
       </Card>
 
       <Modal loading={editLoading} title={isMethod === "edit" ? "编辑足迹" : "新增足迹"} open={isModelOpen} onCancel={closeModel} destroyOnClose footer={null}>
-        <Form form={form} layout="vertical" initialValues={footprint} size='large' preserve={false} className='mt-6'>
-          <Form.Item label="标题" name="title" rules={[{ required: true, message: '标题不能为空' }]}>
-            <Input placeholder="请输入标题" />
-          </Form.Item>
+        <Spin spinning={searchLoading}>
+          <Form form={form} layout="vertical" initialValues={footprint} size='large' preserve={false} className='mt-6'>
+            <Form.Item label="标题" name="title" rules={[{ required: true, message: '标题不能为空' }]}>
+              <Input placeholder="请输入标题" />
+            </Form.Item>
 
-          <Form.Item label="地址" name="address" rules={[{ required: true, message: '地址不能为空' }]}>
-            <Input placeholder="请输入地址" />
-          </Form.Item>
+            <Form.Item label="地址" name="address" rules={[{ required: true, message: '地址不能为空' }]}>
+              <Input placeholder="请输入地址" />
+            </Form.Item>
 
-          <Form.Item label="坐标纬度" name="position" rules={[{ required: true, message: '坐标纬度不能为空' }]}>
-            <Input placeholder="请输入坐标纬度" prefix={<GiPositionMarker />} addonAfter={<IoSearch onClick={getGeocode} className='cursor-pointer' />} />
-          </Form.Item>
+            <Form.Item label="坐标纬度" name="position" rules={[{ required: true, message: '坐标纬度不能为空' }]}>
+              <Input placeholder="请输入坐标纬度" prefix={<GiPositionMarker />} addonAfter={<IoSearch onClick={getGeocode} className='cursor-pointer' />} />
+            </Form.Item>
 
-          <Form.Item label="图片" name="images">
-            <Input.TextArea
-              autoSize={{ minRows: 2, maxRows: 10 }}
-              placeholder="请输入图片链接"
-            />
-          </Form.Item>
+            <div className='relative'>
+              <Form.Item label="图片" name="images">
+                <Input.TextArea
+                  autoSize={{ minRows: 2, maxRows: 10 }}
+                  placeholder="请输入图片链接"
+                />
+              </Form.Item>
 
-          <Form.Item label="内容" name="content">
-            <Input.TextArea
-              autoSize={{ minRows: 5, maxRows: 10 }}
-              placeholder="请输入内容"
-            />
-          </Form.Item>
+              <div onClick={() => setIsMaterialModalOpen(true)} className='absolute bottom-2 right-2 bg-white rounded-full border border-stroke cursor-pointer'>
+                <CloudUploadOutlined className='text-xl hover:text-primary transition-colors p-2' />
+              </div>
+            </div>
 
-          <Form.Item label="时间" name="createTime" rules={[{ required: true, message: '时间不能为空' }]} className='!mb-4'>
-            <DatePicker showTime placeholder='请选择时间' className='w-full' />
-          </Form.Item>
+            <Form.Item label="内容" name="content">
+              <Input.TextArea
+                autoSize={{ minRows: 5, maxRows: 10 }}
+                placeholder="请输入内容"
+              />
+            </Form.Item>
 
-          <Form.Item className='!mb-0 w-full'>
-            <Button type="primary" onClick={onSubmit} loading={btnLoading} className='w-full'>{isMethod === "edit" ? "编辑足迹" : "新增足迹"}</Button>
-          </Form.Item>
-        </Form>
+            <Form.Item label="时间" name="createTime" rules={[{ required: true, message: '时间不能为空' }]} className='!mb-4'>
+              <DatePicker showTime placeholder='请选择时间' className='w-full' />
+            </Form.Item>
+
+            <Form.Item className='!mb-0 w-full'>
+              <Button type="primary" onClick={onSubmit} loading={btnLoading} className='w-full'>{isMethod === "edit" ? "编辑足迹" : "新增足迹"}</Button>
+            </Form.Item>
+          </Form>
+        </Spin>
       </Modal>
+
+      <Material
+        multiple
+        open={isMaterialModalOpen}
+        onClose={() => setIsMaterialModalOpen(false)}
+        onSelect={(url) => {
+          form.setFieldValue("images", url.join("\n"));
+          form.validateFields(['images']);
+        }}
+      />
     </div>
   );
 };

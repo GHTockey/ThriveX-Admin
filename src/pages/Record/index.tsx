@@ -8,6 +8,7 @@ import { delRecordDataAPI, getRecordListAPI } from '@/api/Record';
 import type { Record } from '@/types/app/record';
 
 import dayjs from 'dayjs';
+import { DeleteOutlined, FormOutlined } from '@ant-design/icons';
 
 export interface FilterForm {
   content: string,
@@ -16,6 +17,7 @@ export interface FilterForm {
 
 export default () => {
   const [loading, setLoading] = useState<boolean>(false);
+  const [btnLoading, setBtnLoading] = useState<boolean>(false);
 
   const [recordList, setRecordList] = useState<Record[]>([]);
   const [form] = Form.useForm();
@@ -40,16 +42,16 @@ export default () => {
 
   const delRecordData = async (id: number) => {
     try {
-      setLoading(true);
+      setBtnLoading(true);
 
       await delRecordDataAPI(id);
       getRecordList();
       form.resetFields()
       notification.success({ message: '🎉 删除说说成功' })
 
-      setLoading(false);
+      setBtnLoading(false);
     } catch (error) {
-      setLoading(false);
+      setBtnLoading(false);
     }
   };
 
@@ -104,14 +106,14 @@ export default () => {
       key: 'action',
       fixed: 'right',
       align: 'center',
-      render: (text: string, record: Record) => (
+      render: (_: string, record: Record) => (
         <div className='flex justify-center space-x-2'>
           <Link to={`/create_record?id=${record.id}`}>
-            <Button>编辑</Button>
+            <Button icon={<FormOutlined />} />
           </Link>
 
           <Popconfirm title="警告" description="你确定要删除吗" okText="确定" cancelText="取消" onConfirm={() => delRecordData(record.id!)}>
-            <Button type="primary" danger>删除</Button>
+            <Button type="primary" danger loading={btnLoading} icon={<DeleteOutlined />} />
           </Popconfirm>
         </div>
       ),

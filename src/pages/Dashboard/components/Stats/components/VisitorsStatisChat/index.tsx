@@ -35,7 +35,7 @@ export default () => {
     const [result, setResult] = useState<Result | null>(null);
     const [scope, setScope] = useState<"day" | "month" | "year">("day");
     const [startDate, setStartDate] = useState(dayjs(new Date()).subtract(7, "day").format("YYYY/MM/DD"));
-    const [endDate, setEndDate] = useState(dayjs(new Date()).format("YYYY/MM/DD"));
+    const endDate = dayjs(new Date()).format("YYYY/MM/DD");
 
     // 图表相关配置
     const [options, setOptions] = useState<ApexOptions>({
@@ -135,11 +135,11 @@ export default () => {
     const [state, setState] = useState<ChartOneState>({
         series: [
             {
-                name: '访客数量',
+                name: '浏览量',
                 data: [],
             },
             {
-                name: 'IP数量',
+                name: '访客',
                 data: [],
             },
         ],
@@ -185,8 +185,12 @@ export default () => {
                     return item[0].replace(year, "");
                 });
 
-                pvList = result.items[1].map((item: number[]) => item[0]);
-                ipList = result.items[1].map((item: number[]) => item[1]);
+                pvList = result.items[1].map((item: number[]) =>
+                    typeof item[0] === 'string' ? 0 : item[0],
+                );
+                ipList = result.items[1].map((item: number[]) =>
+                    typeof item[1] === 'string' ? 0 : item[1],
+                );
                 break;
             case "month":
                 const datesArray: string[][] = result.items[0];
@@ -196,7 +200,7 @@ export default () => {
 
                 datesArray.forEach((dateArray, index) => {
                     const date: string = dateArray[0];
-                    const [year, month, day] = date.split('/');
+                    const month = date.split('/')[1];
 
                     if (!monthlySums[month]) {
                         monthlySums[month] = { pv: 0, ip: 0 };
@@ -222,13 +226,9 @@ export default () => {
             case "year":
                 const yearlySums: { [year: string]: { pv: number, ip: number } } = {};
 
-                console.log(result.items);
-                console.log(result.items[0]);
-                
-
                 result.items[0].forEach((dateArray: string[], index: number) => {
                     const date: string = dateArray[0];
-                    const [year, month, day] = date.split('/');
+                    const year = date.split('/')[0];
 
                     if (!yearlySums[year]) {
                         yearlySums[year] = { pv: 0, ip: 0 };
@@ -266,7 +266,7 @@ export default () => {
     // 当数据发生变化时，更新图表选项和状态
     useEffect(() => {
         setLoading(true)
-        
+
         setOptions((data) => ({
             ...data,
             xaxis: { ...options.xaxis, categories: scopeData.categories || [] }
@@ -276,11 +276,11 @@ export default () => {
             ...prevState,
             series: [
                 {
-                    name: '访客数量',
+                    name: '浏览量',
                     data: scopeData.series[0] || 0,
                 },
                 {
-                    name: 'IP数量',
+                    name: '访客',
                     data: scopeData.series[1] || 0,
                 },
             ],
@@ -307,7 +307,7 @@ export default () => {
     };
 
     return (
-        <div className="col-span-12 rounded-lg border border-stroke bg-white px-5 pt-7.5 pb-5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:col-span-8">
+        <div className="col-span-12 rounded-2xl border border-stroke px-5 pt-7.5 pb-5 shadow-default dark:border-transparent bg-light-gradient dark:bg-dark-gradient sm:px-7.5 xl:col-span-8">
             <div className="flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap">
                 <div className="flex w-full flex-wrap gap-3 sm:gap-5">
                     <div className="flex min-w-47.5">

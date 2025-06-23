@@ -10,6 +10,7 @@ import { Role } from '@/types/app/role';
 import { Permission } from '@/types/app/permission';
 import { useUserStore } from '@/stores'
 import "./index.scss"
+import { DeleteOutlined, FormOutlined } from '@ant-design/icons';
 
 export default () => {
     const user = useUserStore(state => state.user);
@@ -46,14 +47,16 @@ export default () => {
         { title: '角色描述', dataIndex: 'description', key: 'description' },
         {
             title: '操作', key: 'action',
-            render: (text: string, record: Role) => (
-                <>
-                    <Button type="primary" onClick={() => bindingRoute(record)}>权限</Button>
-                    <Button onClick={() => editRoleData(record)} className="mx-2">修改</Button>
+            render: (_: string, record: Role) => (
+                <div className='space-x-2'>
+                    {record.mark !== 'admin' && <Button type="primary" onClick={() => bindingRoute(record)}>权限</Button>}
+
+                    <Button onClick={() => editRoleData(record)} icon={<FormOutlined />} />
+
                     <Popconfirm title="警告" description="你确定要删除吗" okText="确定" cancelText="取消" onConfirm={() => delRoleData(record.id!)}>
-                        <Button type="primary" danger>删除</Button>
+                        <Button type="primary" danger icon={<DeleteOutlined />} />
                     </Popconfirm>
-                </>
+                </div>
             )
         }
     ];
@@ -209,9 +212,6 @@ export default () => {
             setBindingLoading(false);
             message.success('🎉 绑定成功');
 
-            console.log(role.id,user.roleId);
-            console.log(role.id === user.roleId);
-            
             // 如果修改的是当前用户所使用的角色，则退出登录
             if (role.id === +user.roleId!) {
                 return quitLogin()
@@ -274,7 +274,8 @@ export default () => {
         "swiper": "轮播图管理",
         "tag": "标签管理",
         "wall": "留言管理",
-        "permission": "权限管理"
+        "permission": "权限管理",
+        "assistant": "助手管理",
     };
 
     // 让n改变 触发Transfer重新渲染
@@ -292,7 +293,6 @@ export default () => {
                         initialValues={role}
                         onFinish={onSubmit}
                         size='large'
-
                     >
                         <Form.Item label="角色名称" name="name" rules={[{ required: true, message: '角色名称不能为空' }]}>
                             <Input placeholder="请输入角色名称" />
@@ -345,7 +345,7 @@ export default () => {
                 <div className='mt-10 mb-4'>
                     <h2 className='flex justify-center my-4 text-lg'>接口权限</h2>
 
-                    <div className='overflow-y-auto h-55 p-4 border border-[#eee] rounded-md'>
+                    <div className='overflow-y-auto h-55 p-4 border border-stroke rounded-md'>
                         {Object.keys(permissionList).map((group, index) => (
                             <div key={index}>
                                 <div className='flex justify-center items-center'>

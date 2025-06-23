@@ -1,30 +1,36 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button, Card, Dropdown, Image, Input, message, Modal, Spin } from "antd"
-import TextArea from "antd/es/input/TextArea"
 
 import { addRecordDataAPI, editRecordDataAPI, getRecordDataAPI } from '@/api/Record'
 
-import FileUpload from "@/components/FileUpload";
 import Title from "@/components/Title"
 import { titleSty } from "@/styles/sty"
 
 import { BiLogoTelegram } from "react-icons/bi";
 import { LuImagePlus } from "react-icons/lu";
 import { RiDeleteBinLine } from "react-icons/ri";
+import Material from "@/components/Material";
+import WangEditor from "@/components/WangEditor";
+
+interface EditorRef {
+    setValue: (value: string) => void,
+    getValue: () => string
+}
 
 export default () => {
     const [loading, setLoading] = useState(false)
+
+    const editorRef = useRef<EditorRef>(null)
 
     const [params] = useSearchParams()
     const id = +params.get('id')!
     const navigate = useNavigate()
 
-    const [content, setContent] = useState("")
     const [imageList, setImageList] = useState<string[]>([])
 
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+    const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
 
     // 删除图片
     const handleDelImage = (data: string) => {
@@ -36,13 +42,14 @@ export default () => {
             setLoading(true)
 
             const data = {
-                content,
+                content: editorRef.current?.getValue() as string,
                 images: JSON.stringify(imageList),
                 createTime: new Date().getTime().toString()
             }
 
-            if (!content.trim().length) {
+            if (!data.content.trim().length) {
                 message.error("请输入内容")
+                setLoading(false)
                 return
             }
 
@@ -66,9 +73,9 @@ export default () => {
             setLoading(true)
 
             const { data } = await getRecordDataAPI(id)
-            setContent(data.content)
+            editorRef.current?.setValue(data.content)
             setImageList(JSON.parse(data.images as string))
-            
+
             setLoading(false)
         } catch (error) {
             setLoading(false)
@@ -86,13 +93,14 @@ export default () => {
         items: [
             {
                 key: 'upload',
-                label: '上传图片',
+                label: '选择图片',
                 onClick: () => {
                     if (imageList.length >= 4) {
                         message.warning('最多只能上传 4 张图片');
                         return;
                     }
-                    setIsModalOpen(true);
+
+                    setIsMaterialModalOpen(true);
                 }
             },
             {
@@ -117,8 +125,9 @@ export default () => {
                                 }}
                             />
                         ),
-                        okText: '确认',
+                        okText: '添加',
                         cancelText: '取消',
+                        maskClosable: true,
                         onOk: () => {
                             if (!inputUrl.startsWith('http://') && !inputUrl.startsWith('https://')) {
                                 message.error('链接必须以 http:// 或 https:// 开头');
@@ -141,16 +150,9 @@ export default () => {
             <Spin spinning={loading}>
                 <Card className={`${titleSty} min-h-[calc(100vh-180px)]`}>
                     <div className="relative flex w-[90%] xl:w-[800px] mx-auto mt-[50px]">
-                        <TextArea
-                            rows={10}
-                            maxLength={500}
-                            placeholder="记录此刻！"
-                            value={content}
-                            onChange={(e) => setContent(e.target.value)}
-                            className="w-full p-4 border-2 border-[#eee] dark:bg-boxdark-2 dark:border-transparent text-base rounded-md"
-                        />
+                        <WangEditor ref={editorRef} />
 
-                        <div className="absolute bottom-4 left-4 flex items-end space-x-3 max-w-[calc(100%-80px)]">
+                        <div className="absolute bottom-4 left-4 flex items-end space-x-3 max-w-[calc(100%-80px)] z-50">
                             <div className="flex space-x-2 overflow-x-auto scrollbar-hide">
                                 {imageList.length > 0 && imageList.map((item, index) => (
                                     <div key={index} className="group overflow-hidden relative shrink-0">
@@ -178,21 +180,20 @@ export default () => {
                             size="large"
                             icon={<BiLogoTelegram className="text-xl" />}
                             loading={loading}
-                            className="absolute bottom-4 right-4"
+                            className="absolute bottom-4 right-4 z-50"
                             onClick={onSubmit}
                         />
                     </div>
                 </Card>
             </Spin>
 
-            <FileUpload
-                dir="record"
-                open={isModalOpen}
-                onSuccess={(url: string[]) => {
+            <Material
+                maxCount={4 - imageList.length}
+                open={isMaterialModalOpen}
+                onClose={() => setIsMaterialModalOpen(false)}
+                onSelect={(url) => {
                     setImageList([...imageList, ...url]);
-                    setIsModalOpen(false);
                 }}
-                onCancel={() => setIsModalOpen(false)}
             />
         </div>
     )

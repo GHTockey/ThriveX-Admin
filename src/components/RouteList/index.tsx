@@ -26,6 +26,8 @@ import Draft from "@/pages/Draft";
 import Decycle from "@/pages/Decycle";
 import Record from "@/pages/Record";
 import Oss from "@/pages/Oss";
+import Album from "@/pages/Album";
+import Assistant from "@/pages/Assistant";
 
 import PageTitle from "../PageTitle";
 
@@ -55,6 +57,7 @@ export default () => {
         { path: "/wall", title: "评论管理", component: <Wall /> },
         { path: "/web", title: "网站管理", component: <Web /> },
         { path: "/swiper", title: "轮播图管理", component: <Swiper /> },
+        { path: "/album", title: "相册管理", component: <Album /> },
         { path: "/footprint", title: "足迹管理", component: <Footprint /> },
         { path: "/user", title: "用户管理", component: <User /> },
         { path: "/storage", title: "存储管理", component: <Oss /> },
@@ -65,6 +68,7 @@ export default () => {
         { path: "/file", title: "文件管理", component: <File /> },
         { path: "/iter", title: "项目更新记录", component: <Iterative /> },
         { path: "/work", title: "工作台", component: <Work /> },
+        { path: "/assistant", title: "助手管理", component: <Assistant /> },
     ];
 
     const [routes, setRoutes] = useState<typeof routesAll | null>(null);

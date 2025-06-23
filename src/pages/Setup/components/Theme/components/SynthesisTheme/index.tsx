@@ -1,29 +1,24 @@
 import { useState, useEffect } from 'react';
-import { notification, Divider, Input, Alert, Button, Form } from 'antd';
+import { notification, Divider, Input, Alert, Button, Form, Checkbox } from 'antd';
 import { PictureOutlined, CloudUploadOutlined } from '@ant-design/icons';
 import { editConfigDataAPI, getConfigDataAPI } from '@/api/Project';
 import { Theme } from '@/types/app/project';
-import FileUpload from '@/components/FileUpload';
+import Material from '@/components/Material';
 
 export default () => {
     const [loading, setLoading] = useState<boolean>(false);
 
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+    const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
     const [theme, setTheme] = useState<Theme>({} as Theme);
 
     const [form] = Form.useForm();
 
-    const onSidebar = (value: string) => {
-        const rightSidebar = JSON.parse(theme.right_sidebar || '[]');
-        const index = rightSidebar.indexOf(value);
-        index > -1 ? rightSidebar.splice(index, 1) : rightSidebar.push(value);
-        setTheme({ ...theme, right_sidebar: JSON.stringify(rightSidebar) });
-    };
+    const [currentUploadType, setCurrentUploadType] = useState<string>('');
 
     const getLayoutData = async () => {
         try {
             setLoading(true);
-            
+
             const { data } = await getConfigDataAPI<Theme>("layout");
             setTheme(data);
 
@@ -76,8 +71,14 @@ export default () => {
         return new URL(`../../image/${name}.png`, import.meta.url).href;
     };
 
-    const UploadBtn = () => (
-        <CloudUploadOutlined className='text-xl cursor-pointer' onClick={() => setIsModalOpen(true)} />
+    const UploadBtn = ({ type }: { type: string }) => (
+        <CloudUploadOutlined
+            className='text-xl cursor-pointer'
+            onClick={() => {
+                setCurrentUploadType(type);
+                setIsMaterialModalOpen(true);
+            }}
+        />
     );
 
     return (
@@ -90,7 +91,7 @@ export default () => {
                     <Form.Item name="light_logo" label="亮色主题 Logo">
                         <Input
                             prefix={<PictureOutlined />}
-                            addonAfter={<UploadBtn />}
+                            addonAfter={<UploadBtn type="light_logo" />}
                             size='large'
                             placeholder="请输入亮色Logo地址"
                         />
@@ -101,7 +102,7 @@ export default () => {
                     <Form.Item name="dark_logo" label="暗色主题 Logo">
                         <Input
                             prefix={<PictureOutlined />}
-                            addonAfter={<UploadBtn />}
+                            addonAfter={<UploadBtn type="dark_logo" />}
                             size='large'
                             placeholder="请输入暗色Logo地址"
                         />
@@ -112,7 +113,7 @@ export default () => {
                     <Form.Item name="swiper_image" label="首页背景图">
                         <Input
                             prefix={<PictureOutlined />}
-                            addonAfter={<UploadBtn />}
+                            addonAfter={<UploadBtn type="swiper_image" />}
                             size='large'
                             placeholder="请输入背景图地址"
                         />
@@ -160,27 +161,30 @@ export default () => {
                     <Alert message="以换行分隔，每行表示一段文本" type="info" className="mt-2" />
 
                     <Divider orientation="left">侧边栏</Divider>
-                    <div className='overflow-auto w-full'>
-                        <div className="sidebar w-[750px] flex mb-4">
-                            {['author', 'randomArticle', 'newComments', 'hotArticle'].map((item) => (
-                                <div key={item} className={`item flex flex-col items-center p-4 m-4 border-2 rounded cursor-pointer ${theme.right_sidebar && JSON.parse(theme.right_sidebar).includes(item) ? 'border-primary' : 'border-[#eee]'}`} onClick={() => onSidebar(item)}>
-                                    <p className={`text-center ${theme.right_sidebar && JSON.parse(theme.right_sidebar).includes(item) ? 'text-primary' : ''}`}>
-                                        {item === 'author' ? '作者信息模块' : item === 'hotArticle' ? '作者推荐模块' : item === 'randomArticle' ? '随机推荐模块' : '最新评论模块'}
-                                    </p>
-                                    <img src={`${getFile(item)}`} alt="" className="mt-4 rounded" />
-                                </div>
-                            ))}
+                    <Checkbox.Group
+                        value={theme.right_sidebar ? JSON.parse(theme.right_sidebar) : []}
+                        onChange={(checkedValues) => {
+                            setTheme({ ...theme, right_sidebar: JSON.stringify(checkedValues) });
+                        }}
+                    >
+                        <div className="grid grid-cols-4 gap-2">
+                            <Checkbox value="author">作者信息模块</Checkbox>
+                            <Checkbox value="runTime">站点时间模块</Checkbox>
+                            <Checkbox value="randomArticle">随机推荐模块</Checkbox>
+                            <Checkbox value="newComments">最新评论模块</Checkbox>
+                            <Checkbox value="hotArticle">作者推荐模块</Checkbox>
                         </div>
-                    </div>
+                    </Checkbox.Group>
 
                     <Divider orientation="left">文章布局</Divider>
                     <div className='overflow-auto w-full'>
                         <div className="article flex w-[650px]">
                             {['classics', 'card', 'waterfall'].map((item) => (
-                                <div key={item} onClick={() => setTheme({ ...theme, is_article_layout: item })} className={`item flex flex-col items-center p-4 m-4 border-2 rounded cursor-pointer ${theme.is_article_layout === item ? 'border-primary' : 'border-[#eee]'}`}>
+                                <div key={item} onClick={() => setTheme({ ...theme, is_article_layout: item })} className={`item flex flex-col items-center p-4 m-4 border-2 rounded cursor-pointer ${theme.is_article_layout === item ? 'border-primary' : 'border-stroke'}`}>
                                     <p className={`text-center ${theme.is_article_layout === item ? 'text-primary' : ''}`}>
                                         {item === 'classics' ? '经典布局' : item === 'card' ? '卡片布局' : '瀑布流布局'}
                                     </p>
+
                                     <img src={`${getFile(item)}`} alt="" className="w-[200px] mt-4 rounded" />
                                 </div>
                             ))}
@@ -191,11 +195,19 @@ export default () => {
                 </Form>
             </div>
 
-            <FileUpload
-                dir="swiper"
-                open={isModalOpen}
-                onSuccess={(url: string[]) => setTheme({ ...theme, swiper_image: url.join("\n") })}
-                onCancel={() => setIsModalOpen(false)}
+            <Material
+                open={isMaterialModalOpen}
+                onClose={() => {
+                    setIsMaterialModalOpen(false);
+                    setCurrentUploadType('');
+                }}
+                onSelect={(url: string[]) => {
+                    if (currentUploadType) {
+                        form.setFieldValue(currentUploadType, url[0]);
+                        form.validateFields([currentUploadType]);
+                        setTheme({ ...theme, [currentUploadType]: url[0] });
+                    }
+                }}
             />
         </div>
     );

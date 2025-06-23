@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Image, Card, Space, Spin, message, Popconfirm, Button, Drawer, Divider } from 'antd'
 import Title from '@/components/Title'
 import FileUpload from '@/components/FileUpload'
@@ -9,9 +9,10 @@ import { File, FileDir } from '@/types/app/file'
 import { PiKeyReturnFill } from "react-icons/pi";
 import { DeleteOutlined, DownloadOutlined, RotateLeftOutlined, RotateRightOutlined, SwapOutlined, UndoOutlined, ZoomInOutlined, ZoomOutOutlined, } from '@ant-design/icons';
 import Masonry from "react-masonry-css";
-import "./index.scss"
 import errorImg from './image/error.png'
+import "./index.scss"
 
+// Masonry布局的响应式断点配置
 const breakpointColumnsObj = {
     default: 4,
     1100: 3,
@@ -20,72 +21,125 @@ const breakpointColumnsObj = {
 };
 
 export default () => {
+    // 加载状态
     const [loading, setLoading] = useState(false)
+    // 按钮加载状态
     const [btnLoading, setBtnLoading] = useState(false)
+    // 下载加载状态
     const [downloadLoading, setDownloadLoading] = useState(false)
+    // 当前页码
+    const [page, setPage] = useState(1)
+    // 是否还有更多数据
+    const [hasMore, setHasMore] = useState(true)
+    // 防止重复加载的引用
+    const loadingRef = useRef(false)
 
+    // 弹窗状态
     const [openUploadModalOpen, setOpenUploadModalOpen] = useState(false);
     const [openFileInfoDrawer, setOpenFileInfoDrawer] = useState(false);
     const [openFilePreviewDrawer, setOpenFilePreviewDrawer] = useState(false);
 
+    // 目录和文件列表数据
     const [dirList, setDirList] = useState<FileDir[]>([])
     const [fileList, setFileList] = useState<File[]>([])
 
+    // 当前选中的目录和文件
     const [dirName, setDirName] = useState("")
     const [file, setFile] = useState<File>({} as File)
 
-    // 获取目录列表
+    /**
+     * 获取目录列表
+     */
     const getDirList = async () => {
         try {
             setLoading(true)
-
             const { data } = await getDirListAPI()
+
+            const dirList = ['default', 'equipment', 'record', 'article', 'footprint', 'swiper', 'album']
+            dirList.forEach(dir => {
+                if (!data.some((item: FileDir) => item.name === dir)) {
+                    data.push({ name: dir, path: '' });
+                }
+            });
+
             setDirList(data)
 
+            // // 过滤掉没有文件的目录
+            // const filteredDirs = await Promise.all(
+            //     data.map(async (dir) => {
+            //         const { data: fileData } = await getFileListAPI(dir.name, { page: 1, size: 1 })
+            //         return fileData.result.length > 0 ? dir : null
+            //     })
+            // )
+            // setDirList(filteredDirs.filter((dir): dir is FileDir => dir !== null))
+
             setLoading(false)
         } catch (error) {
             setLoading(false)
         }
     }
 
-    // 获取指定目录的文件列表
-    const getFileList = async (dir: string) => {
+    /**
+     * 获取指定目录的文件列表
+     * @param dir 目录名称
+     * @param isLoadMore 是否为加载更多
+     */
+    const getFileList = async (dir: string, isLoadMore = false) => {
+        // 防止重复加载
+        if (loadingRef.current) return
         try {
+            loadingRef.current = true
             setLoading(true)
 
-            const { data } = await getFileListAPI(dir)
-            if (!fileList.length && !data.length) message.error("该目录中没有文件")
-            setFileList(data)
+            // 请求文件列表数据，如果是加载更多则页码+1
+            const { data } = await getFileListAPI(dir, { page: isLoadMore ? page + 1 : 1, size: 15 })
+
+            // 根据是否是加载更多来决定是替换还是追加数据
+            if (!isLoadMore) {
+                setFileList(data.result)
+                setPage(1)
+            } else {
+                setFileList(prev => [...prev, ...data.result])
+                setPage(prev => prev + 1)
+            }
+
+            // 判断是否还有更多数据
+            setHasMore(data.result.length === 15)
 
             setLoading(false)
+            loadingRef.current = false
         } catch (error) {
             setLoading(false)
+            loadingRef.current = false
         }
     }
 
-    // 删除图片
+    /**
+     * 删除图片
+     * @param data 要删除的文件数据
+     */
     const onDeleteImage = async (data: File) => {
         try {
             setBtnLoading(true)
-
             await delFileDataAPI(data.url)
             await getFileList(dirName)
             message.success("🎉 删除图片成功")
             setFile({} as File)
             setOpenFileInfoDrawer(false)
             setOpenFilePreviewDrawer(false)
-
             setBtnLoading(false)
         } catch (error) {
             setBtnLoading(false)
         }
     }
 
-    // 下载图片
+    /**
+     * 下载图片
+     * @param data 要下载的文件数据
+     */
     const onDownloadImage = (data: File) => {
         try {
             setDownloadLoading(true)
-
             fetch(data.url)
                 .then((response) => response.blob())
                 .then((blob) => {
@@ -98,24 +152,42 @@ export default () => {
                     URL.revokeObjectURL(url);
                     link.remove();
                 });
-
             setDownloadLoading(false)
         } catch (error) {
             setDownloadLoading(false)
         }
     };
 
-    // 打开目录
+    /**
+     * 处理滚动事件，实现下拉加载更多
+     * @param e 滚动事件对象
+     */
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
+        // 当滚动到底部（距离底部小于50px）且还有更多数据时，触发加载更多
+        if (scrollHeight - scrollTop - clientHeight < 50 && hasMore && !loading) {
+            getFileList(dirName, true)
+        }
+    }
+
+    /**
+     * 打开目录
+     * @param dir 目录名称
+     */
     const openDir = (dir: string) => {
         setDirName(dir)
         getFileList(dir)
     }
 
+    // 组件挂载时获取目录列表
     useEffect(() => {
         getDirList()
     }, [])
 
-    // 查看文件信息
+    /**
+     * 查看文件信息
+     * @param record 文件数据
+     */
     const viewOpenFileInfo = (record: File) => {
         setOpenFileInfoDrawer(true)
         setFile(record)
@@ -128,19 +200,27 @@ export default () => {
             <Card className='FilePage mt-2 min-h-[calc(100vh-180px)]'>
                 <div className='flex justify-between mb-4 px-4'>
                     {
-                        !fileList.length
+                        !fileList.length && !dirName
                             ? <PiKeyReturnFill className='text-4xl text-[#E0DFDF] cursor-pointer' />
-                            : <PiKeyReturnFill className='text-4xl text-primary cursor-pointer' onClick={() => setFileList([])} />
+                            : <PiKeyReturnFill className='text-4xl text-primary cursor-pointer' onClick={() => {
+                                setFileList([])
+                                setDirName("")
+                            }} />
                     }
 
-                    <Button type="primary" disabled={!fileList.length} onClick={() => setOpenUploadModalOpen(true)}>上传文件</Button>
+                    {
+                        dirName && <Button type="primary" onClick={() => setOpenUploadModalOpen(true)}>上传文件</Button>
+                    }
                 </div>
 
                 {/* 文件列表 */}
                 <Spin spinning={loading}>
-                    <div className='flex flex-wrap justify-center md:justify-normal'>
+                    <div
+                        className={`flex flex-wrap ${dirName ? '!justify-center' : 'justify-start!'} md:justify-normal overflow-y-auto max-h-[calc(100vh-300px)]`}
+                        onScroll={handleScroll}
+                    >
                         {
-                            fileList.length
+                            fileList.length || !fileList.length && dirName
                                 ? (
                                     <Masonry
                                         breakpointCols={breakpointColumnsObj}
@@ -151,7 +231,7 @@ export default () => {
                                             fileList.map((item, index) =>
                                                 <div
                                                     key={index}
-                                                    className={`group relative overflow-hidden rounded-md cursor-pointer mb-4 border-2 border-[#eee] dark:border-transparent hover:!border-primary p-1 ${file.url === item.url ? 'border-primary' : 'border-gray-100'}`}
+                                                    className={`group relative overflow-hidden rounded-md cursor-pointer mb-4 border-2 border-stroke dark:border-transparent hover:!border-primary p-1 ${file.url === item.url ? 'border-primary' : 'border-gray-100'}`}
                                                     onClick={() => viewOpenFileInfo(item)}>
 
                                                     <Image
@@ -180,7 +260,7 @@ export default () => {
                 </Spin>
             </Card>
 
-            {/* 文件上传 */}
+            {/* 文件上传弹窗 */}
             <FileUpload
                 dir={dirName}
                 open={openUploadModalOpen}
@@ -188,7 +268,7 @@ export default () => {
                 onCancel={() => setOpenUploadModalOpen(false)}
             />
 
-            {/* 文件信息 */}
+            {/* 文件信息抽屉 */}
             <Drawer
                 width={600}
                 title="图片信息"
@@ -211,7 +291,7 @@ export default () => {
                         <span className='min-w-20 font-bold'>文件大小</span>
                         <span className='text-[#333] dark:text-white'>{(file.size / 1048576).toFixed(2)}MB</span>
                     </div>
-                    
+
                     <div className='flex'>
                         <span className='min-w-20  font-bold'>文件链接</span>
                         <span className='text-[#333] dark:text-white hover:text-primary cursor-pointer transition' onClick={async () => {

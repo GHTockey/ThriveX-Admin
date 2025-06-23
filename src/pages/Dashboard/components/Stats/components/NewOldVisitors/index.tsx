@@ -54,7 +54,7 @@ export default () => {
   const [loading, setLoading] = useState(true)
 
   const [result, setResult] = useState({ newVisitors: 0, oldVisitors: 0 })
-  const [date, setDate] = useState(dayjs(new Date()).format("YYYY/MM/DD"));
+  const date = dayjs(new Date()).format("YYYY/MM/DD");
 
   const [state, setState] = useState<ChartThreeState>({
     series: [0, 0],
@@ -88,7 +88,7 @@ export default () => {
   }, [])
 
   return (
-    <div className="sm:px-7.5 col-span-12 rounded-lg border border-stroke bg-white px-5 pb-5 pt-7.5 shadow-default dark:border-strokedark dark:bg-boxdark xl:col-span-4">
+    <div className="sm:px-7.5 col-span-12 rounded-2xl border border-stroke bg-light-gradient dark:bg-dark-gradient px-5 pb-5 pt-7.5 shadow-default dark:border-transparent xl:col-span-4">
       <Spin spinning={loading}>
         <div className="mb-3 justify-between gap-4 sm:flex">
           <div>

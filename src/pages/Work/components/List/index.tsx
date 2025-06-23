@@ -9,7 +9,7 @@ import RandomAvatar from "@/components/RandomAvatar";
 
 import { useUserStore, useWebStore } from '@/stores';
 import TextArea from "antd/es/input/TextArea";
-import { sendDismissEmailAPI } from "@/api/Email";
+import { sendDismissEmailAPI, sendReplyWallEmailAPI } from "@/api/Email";
 
 type Menu = "comment" | "link" | "wall";
 
@@ -55,21 +55,34 @@ export default ({ item, type, fetchData, setLoading }: ListItemProps) => {
         setBtnLoading(true)
 
         try {
-            // 审核通过评论
+            // 审核通过
             await handleApproval()
 
-            // 发送回复内容
-            await addCommentDataAPI({
-                avatar: user.avatar,
-                url: web.url,
-                content: replyInfo,
-                commentId: item?.id!,
-                auditStatus: 1,
-                email: user.email ? user.email : null,
-                name: user.name,
-                articleId: item?.articleId!,
-                createTime: new Date().getTime().toString(),
-            })
+            if (type === "comment") {
+                // 发送回复内容
+                await addCommentDataAPI({
+                    avatar: user.avatar,
+                    url: web.url,
+                    content: replyInfo,
+                    commentId: item?.id!,
+                    auditStatus: 1,
+                    email: user.email ? user.email : null,
+                    name: user.name,
+                    articleId: item?.articleId!,
+                    createTime: new Date().getTime().toString(),
+                })
+            }
+
+            if (type === "wall") {
+                await sendReplyWallEmailAPI({
+                    to: item.email!,
+                    recipient: item.name!,
+                    your_content: item.content!,
+                    reply_content: replyInfo,
+                    time: dayjs(+item?.createTime!).format('YYYY-MM-DD HH:mm:ss'),
+                    url: web.url + '/wall/all',
+                });
+            }
 
             await fetchData(type);
             message.success('🎉 回复成功');
@@ -166,9 +179,7 @@ export default ({ item, type, fetchData, setLoading }: ListItemProps) => {
 
             <div className="flex justify-between md:p-7 !pt-3 rounded-md transition-colors">
                 <div className="flex">
-                    {type !== "wall" ? (
-                        <img src={item.avatar || item.image} alt="" className="w-13 h-13 border border-[#eee] rounded-full" />
-                    ) : <RandomAvatar className="w-13 h-13 border border-[#eee] rounded-full" />}
+                    {item.avatar || item.image ? <img src={item.avatar || item.image} alt="" className="w-13 h-13 border border-stroke rounded-full" /> : <RandomAvatar className="w-13 h-13 border border-stroke rounded-full" />}
 
                     <div className="flex flex-col justify-center ml-4 px-4 py-2 min-w-[210px] text-xs md:text-sm bg-[#F9F9FD] dark:bg-[#4e5969] rounded-md">
                         {type === "link" ? (
@@ -198,7 +209,7 @@ export default ({ item, type, fetchData, setLoading }: ListItemProps) => {
 
                 <div className="flex items-end ml-15">
                     <Dropdown menu={{
-                        items: type === "comment"
+                        items: type === "comment" || type === "wall"
                             ? [
                                 { key: 'ok', label: "通过", onClick: handleApproval },
                                 { key: 'reply', label: "回复", onClick: () => [setIsModalOpen(true), setBtnType("reply")] },
