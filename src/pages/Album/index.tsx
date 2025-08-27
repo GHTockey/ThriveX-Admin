@@ -1,48 +1,20 @@
-import { useEffect, useState, useRef } from 'react';
-import {
-  Image,
-  Card,
-  Space,
-  Spin,
-  message,
-  Popconfirm,
-  Button,
-  Drawer,
-  Divider,
-  Modal,
-  Form,
-  Input,
-  DatePicker,
-} from 'antd';
-import Title from '@/components/Title';
-import {
-  getAlbumCateListAPI,
-  getImagesByAlbumIdAPI,
-  delAlbumCateDataAPI,
-  addAlbumCateDataAPI,
-  editAlbumCateDataAPI,
-} from '@/api/AlbumCate';
-import { delAlbumImageDataAPI, addAlbumImageDataAPI } from '@/api/AlbumImage';
-import { AlbumCate } from '@/types/app/album';
-import { PiKeyReturnFill } from 'react-icons/pi';
-import {
-  DeleteOutlined,
-  DownloadOutlined,
-  RotateLeftOutlined,
-  RotateRightOutlined,
-  SwapOutlined,
-  UndoOutlined,
-  ZoomInOutlined,
-  ZoomOutOutlined,
-  EditOutlined,
-  PictureOutlined,
-  CloudUploadOutlined,
-} from '@ant-design/icons';
-import errorImg from '../File/image/error.png';
-import albumSvg from '../File/image/file.svg';
-import Material from '@/components/Material';
+import { useEffect, useRef, useState } from 'react';
+
+import { Button, Card, DatePicker, Divider, Drawer, Form, Image, Input, Modal, Popconfirm, Space, Spin, message } from 'antd';
 import Masonry from 'react-masonry-css';
+import { CloudUploadOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, PictureOutlined, RotateLeftOutlined, RotateRightOutlined, SwapOutlined, UndoOutlined, ZoomInOutlined, ZoomOutOutlined } from '@ant-design/icons';
+import { PiKeyReturnFill } from 'react-icons/pi';
 import TextArea from 'antd/es/input/TextArea';
+
+import { addAlbumCateDataAPI, delAlbumCateDataAPI, editAlbumCateDataAPI, getAlbumCateListAPI, getImagesByAlbumIdAPI } from '@/api/AlbumCate';
+import { addAlbumImageDataAPI, delAlbumImageDataAPI } from '@/api/AlbumImage';
+import Material from '@/components/Material';
+import Title from '@/components/Title';
+import { AlbumCate, AlbumImage } from '@/types/app/album';
+
+import albumSvg from '../File/image/file.svg';
+import errorImg from '../File/image/error.png';
+
 import './index.scss';
 
 // Masonry布局的响应式断点配置
@@ -75,11 +47,11 @@ export default () => {
 
   // 相册和照片列表数据
   const [albumList, setAlbumList] = useState<AlbumCate[]>([]);
-  const [imageList, setImageList] = useState<any[]>([]);
+  const [imageList, setImageList] = useState<AlbumImage[]>([]);
 
   // 当前选中的相册和照片
   const [currentAlbum, setCurrentAlbum] = useState<AlbumCate>({} as AlbumCate);
-  const [currentImage, setCurrentImage] = useState<any>({});
+  const [currentImage, setCurrentImage] = useState<AlbumImage>({} as AlbumImage);
 
   // 相册表单
   const [albumForm] = Form.useForm();
@@ -105,6 +77,7 @@ export default () => {
       setAlbumList(data);
       setLoading(false);
     } catch (error) {
+      console.error(error);
       setLoading(false);
     }
   };
@@ -121,10 +94,7 @@ export default () => {
       loadingRef.current = true;
       setLoading(true);
 
-      const { data } = await getImagesByAlbumIdAPI(
-        albumId,
-        isLoadMore ? page + 1 : 1,
-      );
+      const { data } = await getImagesByAlbumIdAPI(albumId, isLoadMore ? page + 1 : 1);
 
       if (!isLoadMore) {
         setImageList(data.result);
@@ -139,6 +109,7 @@ export default () => {
       setLoading(false);
       loadingRef.current = false;
     } catch (error) {
+      console.error(error);
       setLoading(false);
       loadingRef.current = false;
     }
@@ -148,18 +119,19 @@ export default () => {
    * 删除照片
    * @param data 要删除的照片数据
    */
-  const onDeleteImage = async (data: any) => {
+  const onDeleteImage = async (data: AlbumImage) => {
     try {
       setBtnLoading(true);
-      await delAlbumImageDataAPI(data.id);
+      await delAlbumImageDataAPI(data.id!);
       await getImageList(currentAlbum.id!);
       await getAlbumList();
       message.success('🎉 删除照片成功');
-      setCurrentImage({});
+      setCurrentImage({} as AlbumImage);
       setOpenImageInfoDrawer(false);
       setOpenImagePreviewDrawer(false);
       setBtnLoading(false);
     } catch (error) {
+      console.error(error);
       setBtnLoading(false);
     }
   };
@@ -168,23 +140,22 @@ export default () => {
    * 下载照片
    * @param data 要下载的照片数据
    */
-  const onDownloadImage = (data: any) => {
+  const onDownloadImage = async (data: AlbumImage) => {
     try {
       setDownloadLoading(true);
-      fetch(data.image)
-        .then((response) => response.blob())
-        .then((blob) => {
-          const url = URL.createObjectURL(new Blob([blob]));
-          const link = document.createElement<'a'>('a');
-          link.href = url;
-          link.download = data.name;
-          document.body.appendChild(link);
-          link.click();
-          URL.revokeObjectURL(url);
-          link.remove();
-        });
+      const response = await fetch(data.image);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement<'a'>('a');
+      link.href = url;
+      link.download = data.name;
+      document.body.appendChild(link);
+      link.click();
+      URL.revokeObjectURL(url);
+      link.remove();
       setDownloadLoading(false);
     } catch (error) {
+      console.error(error);
       setDownloadLoading(false);
     }
   };
@@ -195,12 +166,7 @@ export default () => {
    */
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    if (
-      scrollHeight - scrollTop - clientHeight < 50 &&
-      hasMore &&
-      !loading &&
-      currentAlbum.id
-    ) {
+    if (scrollHeight - scrollTop - clientHeight < 50 && hasMore && !loading && currentAlbum.id) {
       getImageList(currentAlbum.id, true);
     }
   };
@@ -223,9 +189,9 @@ export default () => {
    * 查看照片信息
    * @param image 照片数据
    */
-  const viewImageInfo = (image: any) => {
+  const viewImageInfo = (data: AlbumImage) => {
     setOpenImageInfoDrawer(true);
-    setCurrentImage(image);
+    setCurrentImage(data);
   };
 
   /**
@@ -263,6 +229,7 @@ export default () => {
       getAlbumList();
       setAlbumFormLoading(false);
     } catch (error) {
+      console.error(error);
       setAlbumFormLoading(false);
     }
   };
@@ -279,6 +246,7 @@ export default () => {
       message.success('🎉 删除相册成功');
       setBtnLoading(false);
     } catch (error) {
+      console.error(error);
       setBtnLoading(false);
     }
   };
@@ -306,6 +274,7 @@ export default () => {
       getAlbumList();
       setUploadLoading(false);
     } catch (error) {
+      console.error(error);
       setUploadLoading(false);
     }
   };
@@ -314,7 +283,7 @@ export default () => {
     <div>
       <Title value="相册管理" />
 
-      <Card className="AlbumPage mt-2 min-h-[calc(100vh-180px)]">
+      <Card className="AlbumPage mt-2 min-h-[calc(100vh-160px)]">
         <div className="flex justify-between mb-4 px-4">
           {!imageList.length && !currentAlbum.id ? (
             <PiKeyReturnFill className="text-4xl text-[#E0DFDF] cursor-pointer" />
@@ -330,10 +299,7 @@ export default () => {
 
           <Space>
             {currentAlbum.id ? (
-              <Button
-                type="primary"
-                onClick={() => setIsAddAlbumModalOpen(true)}
-              >
+              <Button type="primary" onClick={() => setIsAddAlbumModalOpen(true)}>
                 上传照片
               </Button>
             ) : (
@@ -346,48 +312,20 @@ export default () => {
 
         {/* 照片列表 */}
         <Spin spinning={loading}>
-          <div
-            className={`flex flex-wrap ${currentAlbum.id ? '!justify-center' : 'justify-start!'
-              } md:justify-normal overflow-y-auto max-h-[calc(100vh-300px)]`}
-            onScroll={handleScroll}
-          >
+          <div className={`flex flex-wrap ${currentAlbum.id ? '!justify-center' : 'justify-start!'} md:justify-normal overflow-y-auto max-h-[calc(100vh-300px)]`} onScroll={handleScroll}>
             {imageList.length || (!imageList.length && currentAlbum.id) ? (
-              <Masonry
-                breakpointCols={breakpointColumnsObj}
-                className="masonry-grid"
-                columnClassName="masonry-grid_column"
-              >
+              <Masonry breakpointCols={breakpointColumnsObj} className="masonry-grid" columnClassName="masonry-grid_column">
                 {imageList.map((item, index) => (
-                  <div
-                    key={index}
-                    className={`group relative overflow-hidden rounded-md cursor-pointer mb-4 border-2 border-stroke dark:border-transparent hover:!border-primary p-1 ${currentImage.id === item.id
-                        ? 'border-primary'
-                        : 'border-gray-100'
-                      }`}
-                    onClick={() => viewImageInfo(item)}
-                  >
-                    <Image
-                      src={item.image}
-                      className="w-full rounded-md"
-                      loading="lazy"
-                      preview={false}
-                      fallback={errorImg}
-                    />
+                  <div key={index} className={`group relative overflow-hidden rounded-md cursor-pointer mb-4 border-2 border-stroke dark:border-transparent hover:!border-primary p-1 ${currentImage.id === item.id ? 'border-primary' : 'border-gray-100'}`} onClick={() => viewImageInfo(item)}>
+                    <Image src={item.image} className="w-full rounded-md" loading="lazy" preview={false} fallback={errorImg} />
                   </div>
                 ))}
               </Masonry>
             ) : (
               albumList.map((item, index) => (
-                <div
-                  key={index}
-                  className="group w-25 flex flex-col items-center cursor-pointer m-4 relative"
-                  onClick={() => openAlbum(item)}
-                >
+                <div key={index} className="group w-25 flex flex-col items-center cursor-pointer m-4 relative" onClick={() => openAlbum(item)}>
                   <div className="relative w-32 h-32">
-                    <img
-                      src={albumSvg}
-                      className="w-full h-full p-2 object-cover"
-                    />
+                    <img src={albumSvg} className="w-full h-full p-2 object-cover" />
 
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all rounded-lg flex items-center justify-center">
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -413,25 +351,15 @@ export default () => {
                             cancelText="取消"
                             placement="bottom"
                           >
-                            <Button
-                              type="primary"
-                              danger
-                              shape="circle"
-                              icon={<DeleteOutlined />}
-                              onClick={(e) => e.stopPropagation()}
-                            />
+                            <Button type="primary" danger shape="circle" icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()} />
                           </Popconfirm>
                         </Space>
                       </div>
                     </div>
                   </div>
 
-                  <p className="group-hover:text-primary transition-colors text-sm mt-1">
-                    {item.name}
-                  </p>
-                  <p className="text-slate-400 text-xs mt-1">
-                    {item.count} 张照片
-                  </p>
+                  <p className="group-hover:text-primary transition-colors text-sm mt-1">{item.name}</p>
+                  <p className="text-slate-400 text-xs mt-1">{item.count} 张照片</p>
                 </div>
               ))
             )}
@@ -440,23 +368,13 @@ export default () => {
       </Card>
 
       {/* 相册表单弹窗 */}
-      <Modal
-        title={albumModalType === 'add' ? '新增相册' : '修改相册'}
-        open={openAlbumModal}
-        onOk={onAlbumFormSubmit}
-        onCancel={() => setOpenAlbumModal(false)}
-        confirmLoading={albumFormLoading}
-      >
+      <Modal title={albumModalType === 'add' ? '新增相册' : '修改相册'} open={openAlbumModal} onOk={onAlbumFormSubmit} onCancel={() => setOpenAlbumModal(false)} confirmLoading={albumFormLoading}>
         <Form form={albumForm} layout="vertical" size="large">
           <Form.Item name="id" hidden>
             <Input />
           </Form.Item>
 
-          <Form.Item
-            name="name"
-            label="相册名称"
-            rules={[{ required: true, message: '请输入相册名称' }]}
-          >
+          <Form.Item name="name" label="相册名称" rules={[{ required: true, message: '请输入相册名称' }]}>
             <Input placeholder="请输入相册名称" />
           </Form.Item>
 
@@ -471,17 +389,7 @@ export default () => {
               },
             ]}
           >
-            <Input
-              placeholder="请输入相册封面链接"
-              prefix={<PictureOutlined />}
-              addonAfter={
-                <CloudUploadOutlined
-                  className="text-xl cursor-pointer"
-                  onClick={() => setIsMaterialModalOpen(true)}
-                />
-              }
-              className="customizeAntdInputAddonAfter"
-            />
+            <Input placeholder="请输入相册封面链接" prefix={<PictureOutlined />} addonAfter={<CloudUploadOutlined className="text-xl cursor-pointer" onClick={() => setIsMaterialModalOpen(true)} />} className="customizeAntdInputAddonAfter" />
           </Form.Item>
         </Form>
       </Modal>
@@ -494,22 +402,18 @@ export default () => {
         open={openImageInfoDrawer}
         onClose={() => {
           setOpenImageInfoDrawer(false);
-          setCurrentImage({});
+          setCurrentImage({} as AlbumImage);
         }}
       >
         <div className="flex flex-col">
           <div className="flex">
             <span className="min-w-20 font-bold">照片名称</span>
-            <span className="text-[#333] dark:text-white">
-              {currentImage.name}
-            </span>
+            <span className="text-[#333] dark:text-white">{currentImage.name}</span>
           </div>
 
           <div className="flex">
             <span className="min-w-20 font-bold">所属相册</span>
-            <span className="text-[#333] dark:text-white">
-              {currentAlbum.name}
-            </span>
+            <span className="text-[#333] dark:text-white">{currentAlbum.name}</span>
           </div>
 
           <div className="flex">
@@ -534,36 +438,14 @@ export default () => {
           preview={{
             onVisibleChange: (visible) => setOpenImagePreviewDrawer(visible),
             visible: openImagePreviewDrawer,
-            toolbarRender: (
-              _,
-              {
-                transform: { scale },
-                actions: {
-                  onFlipY,
-                  onFlipX,
-                  onRotateLeft,
-                  onRotateRight,
-                  onZoomOut,
-                  onZoomIn,
-                  onReset,
-                },
-              },
-            ) => (
+            toolbarRender: (_, { transform: { scale }, actions: { onFlipY, onFlipX, onRotateLeft, onRotateRight, onZoomOut, onZoomIn, onReset } }) => (
               <Space className="toolbar-wrapper flex-col">
                 <div className="customAntdPreviewsItem">
-                  <Popconfirm
-                    title="警告"
-                    description="删除后无法恢复，确定要删除吗"
-                    onConfirm={() => onDeleteImage(currentImage)}
-                    okText="删除"
-                    cancelText="取消"
-                  >
+                  <Popconfirm title="警告" description="删除后无法恢复，确定要删除吗" onConfirm={() => onDeleteImage(currentImage)} okText="删除" cancelText="取消">
                     <DeleteOutlined />
                   </Popconfirm>
 
-                  <DownloadOutlined
-                    onClick={() => onDownloadImage(currentImage)}
-                  />
+                  <DownloadOutlined onClick={() => onDownloadImage(currentImage)} />
                   <SwapOutlined rotate={90} onClick={onFlipY} />
                   <SwapOutlined onClick={onFlipX} />
                   <RotateLeftOutlined onClick={onRotateLeft} />
@@ -578,21 +460,10 @@ export default () => {
         />
 
         <Divider orientation="center">照片操作</Divider>
-        <Button
-          type="primary"
-          loading={downloadLoading}
-          onClick={() => onDownloadImage(currentImage)}
-          className="w-full mb-2"
-        >
+        <Button type="primary" loading={downloadLoading} onClick={() => onDownloadImage(currentImage)} className="w-full mb-2">
           下载照片
         </Button>
-        <Popconfirm
-          title="警告"
-          description="删除后无法恢复，确定要删除吗"
-          onConfirm={() => onDeleteImage(currentImage)}
-          okText="删除"
-          cancelText="取消"
-        >
+        <Popconfirm title="警告" description="删除后无法恢复，确定要删除吗" onConfirm={() => onDeleteImage(currentImage)} okText="删除" cancelText="取消">
           <Button type="primary" danger loading={btnLoading} className="w-full">
             删除照片
           </Button>
@@ -611,11 +482,7 @@ export default () => {
         confirmLoading={uploadLoading}
       >
         <Form form={uploadForm} layout="vertical" size="large">
-          <Form.Item
-            name="name"
-            label="照片名称"
-            rules={[{ required: true, message: '请输入照片名称' }]}
-          >
+          <Form.Item name="name" label="照片名称" rules={[{ required: true, message: '请输入照片名称' }]}>
             <Input placeholder="请输入照片名称" />
           </Form.Item>
 
@@ -636,25 +503,11 @@ export default () => {
                 },
               ]}
             >
-              <Input
-                placeholder="请输入照片链接"
-                prefix={<PictureOutlined />}
-                addonAfter={
-                  <CloudUploadOutlined
-                    className="text-xl cursor-pointer"
-                    onClick={() => setIsMaterialModalOpen(true)}
-                  />
-                }
-                className="customizeAntdInputAddonAfter"
-              />
+              <Input placeholder="请输入照片链接" prefix={<PictureOutlined />} addonAfter={<CloudUploadOutlined className="text-xl cursor-pointer" onClick={() => setIsMaterialModalOpen(true)} />} className="customizeAntdInputAddonAfter" />
             </Form.Item>
           </div>
 
-          <Form.Item
-            name="date"
-            label="照片日期"
-            rules={[{ required: true, message: '请选择照片日期' }]}
-          >
+          <Form.Item name="date" label="照片日期" rules={[{ required: true, message: '请选择照片日期' }]}>
             <DatePicker className="w-full" placeholder="请选择照片日期" />
           </Form.Item>
         </Form>

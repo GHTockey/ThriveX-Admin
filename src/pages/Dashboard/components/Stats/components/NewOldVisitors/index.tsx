@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import ReactApexChart from 'react-apexcharts';
 import dayjs from 'dayjs';
 import { Spin } from 'antd';
+import { getStatisAPI } from '@/api/Statis';
+import { StatisResponse } from '../VisitorsStatisChat/type';
 
 interface ChartThreeState {
   series: number[];
@@ -13,7 +15,7 @@ const options: ApexOptions = {
     fontFamily: 'Satoshi, sans-serif',
     type: 'donut',
   },
-  colors: ['#91C8EA', '#727cf5'],
+  colors: ['#91C8EA', '#60a5fa'],
   labels: ['新访客', '老访客'],
   legend: {
     show: false,
@@ -51,50 +53,46 @@ const options: ApexOptions = {
 };
 
 export default () => {
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true);
 
-  const [result, setResult] = useState({ newVisitors: 0, oldVisitors: 0 })
-  const date = dayjs(new Date()).format("YYYY/MM/DD");
+  const [result, setResult] = useState({ newVisitors: 0, oldVisitors: 0 });
+  const date = dayjs(new Date()).format('YYYY/MM/DD');
 
   const [state, setState] = useState<ChartThreeState>({
     series: [0, 0],
   });
 
   const getDataList = async () => {
-    setLoading(true)
+    setLoading(true);
 
     try {
-      const siteId = import.meta.env.VITE_BAIDU_TONGJI_SITE_ID;
-      const token = import.meta.env.VITE_BAIDU_TONGJI_ACCESS_TOKEN;
+      const { data } = await getStatisAPI('new-visitor', date, date);
+      if (!data) return setLoading(false);
+      const { result } = data as StatisResponse;
 
-      const response = await fetch(`/baidu/rest/2.0/tongji/report/getData?access_token=${token}&site_id=${siteId}&start_date=${date}&end_date=${date}&metrics=new_visitor_count%2Cnew_visitor_ratio&method=trend%2Ftime%2Fa&gran=day&area=`);
-      const data = await response.json();
-      const { result } = data;
+      const newVisitors = result.items[1][0][1] !== '--' ? Number(Number(result.items[1][0][1]).toFixed(2)) : 0;
+      const oldVisitors = result.items[1][0][1] !== '--' ? Number((100 - Number(result.items[1][0][1])).toFixed(2)) : 0;
 
-      const newVisitors = result.items[1][0][1] !== "--" ? result.items[1][0][1] : 0
-      const oldVisitors = result.items[1][0][1] !== "--" ? 100 - result.items[1][0][1] : 0
-
-      setState({ series: [newVisitors, oldVisitors] })
-      setResult({ newVisitors, oldVisitors })
+      setState({ series: [newVisitors, oldVisitors] });
+      setResult({ newVisitors, oldVisitors });
     } catch (error) {
-      setLoading(false)
+      console.error(error);
+      setLoading(false);
     }
 
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
   useEffect(() => {
-    getDataList()
-  }, [])
+    getDataList();
+  }, []);
 
   return (
     <div className="sm:px-7.5 col-span-12 rounded-2xl border border-stroke bg-light-gradient dark:bg-dark-gradient px-5 pb-5 pt-7.5 shadow-default dark:border-transparent xl:col-span-4">
       <Spin spinning={loading}>
         <div className="mb-3 justify-between gap-4 sm:flex">
           <div>
-            <h5 className="text-xl font-semibold text-black dark:text-white">
-              新老访客
-            </h5>
+            <h5 className="text-xl font-semibold text-black dark:text-white">新老访客</h5>
           </div>
         </div>
 
@@ -117,7 +115,7 @@ export default () => {
 
           <div className="sm:w-1/2 w-full px-8">
             <div className="flex w-full items-center">
-              <span className="mr-2 block h-3 w-full max-w-3 rounded-full bg-[#727cf5]"></span>
+              <span className="mr-2 block h-3 w-full max-w-3 rounded-full bg-[#60a5fa]"></span>
               <p className="flex w-full justify-between text-sm font-medium text-black dark:text-white">
                 <span> 老访客 </span>
                 <span> {result.oldVisitors.toFixed(2)}% </span>

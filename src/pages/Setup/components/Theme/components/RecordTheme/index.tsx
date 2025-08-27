@@ -1,71 +1,82 @@
 import { useEffect, useState } from 'react';
 import { Form, notification, Input, Button } from 'antd';
-import { Theme } from '@/types/app/project';
-import { editConfigDataAPI, getConfigDataAPI } from '@/api/Project';
+
+import { Theme } from '@/types/app/config';
+import { editWebConfigDataAPI, getWebConfigDataAPI } from '@/api/Config';
 
 export default () => {
-    const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [theme, setTheme] = useState<Theme>({} as Theme);
 
-    const [form] = Form.useForm();
+  const [form] = Form.useForm();
 
-    const getLayoutData = async () => {
-        try {
-            setLoading(true);
+  const getLayoutData = async () => {
+    try {
+      setLoading(true);
 
-            const { data } = await getConfigDataAPI<Theme>("layout");
-            form.setFieldsValue({
-                record_name: data.record_name,
-                record_info: data.record_info
-            });
+      const { data } = await getWebConfigDataAPI<{ value: Theme }>('theme');
 
-            setLoading(false);
-        } catch (error) {
-            setLoading(false);
-        }
-    };
+      const theme = data.value;
 
-    useEffect(() => {
-        getLayoutData();
-    }, []);
+      setTheme(theme);
 
-    const editThemeData = async (values: { record_name: string, record_info: string }) => {
-        try {
-            setLoading(true);
+      form.setFieldsValue({
+        record_name: theme.record_name,
+        record_info: theme.record_info,
+      });
 
-            await editConfigDataAPI("layout", values);
+      setLoading(false);
+    } catch (error) {
+      console.error(error);
+      setLoading(false);
+    }
+  };
 
-            notification.success({
-                message: '成功',
-                description: '🎉 修改主题成功',
-            });
+  useEffect(() => {
+    getLayoutData();
+  }, []);
 
-            setLoading(false);
-        } catch (error) {
-            setLoading(false);
-        }
-    };
+  const editThemeData = async (values: { record_name: string; record_info: string }) => {
+    try {
+      setLoading(true);
 
-    return (
-        <div>
-            <h2 className="text-xl pb-4 pl-10">说说配置</h2>
+      await editWebConfigDataAPI('theme', {
+        ...theme,
+        record_name: values.record_name,
+        record_info: values.record_info,
+      });
 
-            <div className='w-full lg:w-[500px] md:ml-10'>
-                <Form form={form} onFinish={editThemeData} layout="vertical">
-                    <Form.Item name="record_name" label="个人名称">
-                        <Input size='large' placeholder="请输入个人名称" />
-                    </Form.Item>
+      notification.success({
+        message: '成功',
+        description: '🎉 修改主题成功',
+      });
 
-                    <Form.Item name="record_info" label="个人介绍">
-                        <Input.TextArea
-                            size='large'
-                            autoSize={{ minRows: 2, maxRows: 4 }}
-                            placeholder="请输入个人介绍"
-                        />
-                    </Form.Item>
+      setLoading(false);
+    } catch (error) {
+      console.error(error);
+      setLoading(false);
+    }
+  };
 
-                    <Button type="primary" size="large" className="w-full mt-4" htmlType="submit" loading={loading}>保存</Button>
-                </Form>
-            </div>
-        </div>
-    );
+  return (
+    <div>
+      <h2 className="text-xl pb-4 pl-10">闪念配置</h2>
+
+      <div className="w-full lg:w-[500px] md:ml-10">
+        <Form form={form} onFinish={editThemeData} layout="vertical">
+          <Form.Item name="record_name" label="个人名称">
+            <Input size="large" placeholder="请输入个人名称" />
+          </Form.Item>
+
+          <Form.Item name="record_info" label="个人介绍">
+            <Input.TextArea size="large" autoSize={{ minRows: 2, maxRows: 4 }} placeholder="请输入个人介绍" />
+          </Form.Item>
+
+          <Button type="primary" size="large" className="w-full mt-4" htmlType="submit" loading={loading}>
+            保存
+          </Button>
+        </Form>
+      </div>
+    </div>
+  );
 };
